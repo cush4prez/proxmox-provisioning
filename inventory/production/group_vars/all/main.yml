@@ -1,0 +1,86 @@
+---
+# =============================================================================
+# Global defaults for every node. Anything here can be overridden per node in
+# host_vars/<fqdn>.yml. Secrets live in group_vars/all/vault.yml (vaulted).
+# =============================================================================
+
+# --- Proxmox API ------------------------------------------------------------
+proxmox_api_host: pve01.myhome.lab
+proxmox_api_port: 8006
+proxmox_api_user: root@pam
+proxmox_api_token_id: provisioning          # token NAME only (user@realm!<this>)
+proxmox_api_token_secret: "{{ vault_proxmox_api_token_secret | default(lookup('ansible.builtin.env', 'PROXMOX_TOKEN_SECRET'), true) }}"
+proxmox_validate_certs: true
+
+# Cluster node a VM is created on unless the host sets vm_node.
+proxmox_default_node: pve01
+
+# Node that holds the templates, if not every node has its own copy. Cloning
+# to a different node requires the template on shared storage.
+# proxmox_template_node: pve01
+
+# Cloud-init enabled templates, one per RHEL major version (see docs/PROXMOX_TEMPLATES.md).
+proxmox_templates:
+  8: rhel8-cloudinit-template
+  9: rhel9-cloudinit-template
+  10: rhel10-cloudinit-template
+
+# --- VM defaults (per-node override in host_vars) ---------------------------
+vm_cores: 2
+vm_sockets: 1
+vm_cpu_type: host
+vm_memory: 4096                 # MiB
+vm_disk: scsi0                  # template boot disk to grow
+vm_disk_size: 40G               # only ever grows
+vm_storage: local-lvm
+vm_bridge: vmbr0
+vm_vlan: ""                     # VLAN tag, empty = untagged
+vm_onboot: true
+vm_extra_disks: []              # [{disk: scsi1, size: 200, storage: local-lvm}]  size in GiB
+
+# Networking (cloud-init). Leave vm_ip undefined on a host to use DHCP.
+vm_prefix: 24
+vm_gateway: 192.168.10.1
+vm_dns_servers: [192.168.10.1]       # existing site resolver; switch to your new DNS node once it is built
+vm_search_domains: [myhome.lab]
+
+# Cloud-init login. The password is needed for sudo once DISA STIG removes NOPASSWD.
+vm_ci_user: cloud-user
+vm_ci_password: "{{ vault_vm_ci_password }}"
+vm_ssh_public_keys:
+  - "{{ lookup('ansible.builtin.file', '~/.ssh/id_ed25519.pub') }}"
+
+# --- How Ansible connects to the guest --------------------------------------
+ansible_user: "{{ vm_ci_user }}"
+ansible_host: "{{ vm_ip | default(inventory_hostname) }}"
+ansible_become_password: "{{ vault_vm_ci_password | default('') }}"
+
+# --- Node purpose (normally set per node) -----------------------------------
+rhel_version: 9                 # 8 | 9 | 10
+server_roles: []                # any of: dns, ntp, satellite, aap
+stig_enabled: false             # true = apply DISA STIG (RedHatOfficial roles)
+
+# --- Base OS (roles/common) -------------------------------------------------
+timezone: UTC
+# Registration: none | rhsm | satellite
+registration_method: none
+rhsm_org_id: ""
+rhsm_activation_key: ""
+# satellite_registration_server: sat01.myhome.lab
+
+# Upstream time sources. Nodes with the `ntp` role sync from these and serve
+# time to the network; every other node syncs from the ntp-role nodes in this
+# inventory (or from these upstreams if there are none).
+ntp_upstream_servers:
+  - 0.rhel.pool.ntp.org
+  - 1.rhel.pool.ntp.org
+  - 2.rhel.pool.ntp.org
+inventory_ntp_servers: >-
+  {{ groups['rhel_nodes'] | map('extract', hostvars) | selectattr('server_roles', 'contains', 'ntp')
+     | map(attribute='inventory_hostname') | list }}
+chrony_servers: "{{ ntp_upstream_servers if 'ntp' in server_roles else (inventory_ntp_servers or ntp_upstream_servers) }}"
+
+admin_users: []
+# admin_users:
+#   - name: jdoe
+#     ssh_keys: ["ssh-ed25519 AAAA... jdoe@example.com"]

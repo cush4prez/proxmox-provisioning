@@ -1,0 +1,52 @@
+---
+- name: Load variables for RHEL {{ rhel_version }}
+  ansible.builtin.include_vars: "RedHat-{{ ansible_facts['distribution_major_version'] }}.yml"
+
+- name: Install BIND
+  ansible.builtin.dnf:
+    name: [bind, bind-utils]
+    state: present
+
+- name: Write named.conf
+  ansible.builtin.template:
+    src: named.conf.j2
+    dest: /etc/named.conf
+    owner: root
+    group: named
+    mode: "0640"
+    validate: named-checkconf %s
+  notify: Reload named
+
+- name: Write primary zones
+  ansible.builtin.include_tasks: zone.yml
+  loop: "{{ dns_zones }}"
+  loop_control:
+    loop_var: zone
+    label: "{{ zone.name }}"
+  when: zone.type | default('primary') == 'primary'
+
+- name: Enable named
+  ansible.builtin.service:
+    name: named
+    state: started
+    enabled: true
+
+- name: Allow DNS through the firewall
+  ansible.posix.firewalld:
+    service: dns
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Apply configuration before verifying
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify each primary zone answers SOA
+  ansible.builtin.command: dig +short @127.0.0.1 {{ item.name }} SOA
+  register: _dig
+  changed_when: false
+  failed_when: _dig.stdout | length == 0
+  loop: "{{ dns_zones }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.type | default('primary') == 'primary'

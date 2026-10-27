@@ -1,0 +1,12 @@
+---
+# Collections for the ansible-core 2.16 environment used to CONFIGURE RHEL 8
+# hosts (configure.yml). ansible-core >= 2.17 cannot manage RHEL 8 because the
+# dnf module must respawn under platform-python 3.6. See docs/RHEL8.md.
+collections:
+  - name: community.general
+    version: ">=9.0.0,<10.0.0"
+  - name: ansible.posix
+    version: ">=1.5.0,<2.0.0"
+
+roles:
+  - name: RedHatOfficial.rhel8_stig

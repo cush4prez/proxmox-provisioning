@@ -1,0 +1,121 @@
+---
+- name: Verify the guest matches its inventory definition
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'RedHat'
+      - ansible_facts['distribution_major_version'] | int == rhel_version | int
+    fail_msg: >-
+      {{ inventory_hostname }} is {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] }} but rhel_version is {{ rhel_version }}.
+      Check proxmox_templates / vm_template.
+    quiet: true
+
+- name: Load variables for RHEL {{ rhel_version }}
+  ansible.builtin.include_vars: "RedHat-{{ ansible_facts['distribution_major_version'] }}.yml"
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Add self to /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^\S+\s+{{ inventory_hostname | regex_escape }}(\s|$)'
+    line: "{{ ansible_host }} {{ inventory_hostname }} {{ inventory_hostname_short }}"
+  when: vm_ip is defined
+
+- name: Register system
+  ansible.builtin.include_tasks: register.yml
+  when: registration_method != 'none'
+
+- name: Install base packages
+  ansible.builtin.dnf:
+    name: "{{ common_packages + common_version_packages + common_extra_packages }}"
+    state: present
+
+- name: Apply all updates
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest  # noqa: package-latest  -- opt-in via common_update_packages
+  when: common_update_packages | bool
+  register: _common_updates
+
+- name: Reboot if updates require it
+  when:
+    - _common_updates is changed
+    - common_reboot_if_needed | bool
+  block:
+    - name: Check whether a reboot is required
+      ansible.builtin.command: dnf needs-restarting -r
+      register: _needs_restart
+      changed_when: false
+      failed_when: _needs_restart.rc not in [0, 1]
+
+    - name: Reboot
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+      when: _needs_restart.rc == 1
+
+- name: Read current timezone
+  ansible.builtin.command: timedatectl show --property=Timezone --value
+  register: _current_tz
+  changed_when: false
+
+- name: Set timezone to {{ timezone }}
+  ansible.builtin.command: timedatectl set-timezone {{ timezone | quote }}
+  when: _current_tz.stdout != timezone
+  changed_when: true
+
+- name: Enable services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop: [qemu-guest-agent, firewalld, chronyd]
+
+- name: Configure chrony as a client
+  ansible.builtin.template:
+    src: chrony-client.conf.j2
+    dest: /etc/chrony.conf
+    mode: "0644"
+  notify: Restart chronyd
+  # Nodes with the ntp role get a server config from roles/ntp instead.
+  when: "'ntp' not in server_roles"
+
+- name: Open baseline firewall services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ common_firewall_services }}"
+
+- name: Harden sshd (drop-in)
+  ansible.builtin.template:
+    src: sshd-provisioning.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-provisioning.conf
+    mode: "0600"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart sshd
+  when: common_sshd_dropin
+
+- name: Harden sshd (top of sshd_config, first value wins)
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    insertbefore: BOF
+    marker: "# {mark} proxmox-provisioning managed settings"
+    block: "{{ lookup('ansible.builtin.template', 'sshd-provisioning.conf.j2') }}"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart sshd
+  when: not common_sshd_dropin
+
+- name: Create admin users
+  ansible.builtin.include_tasks: users.yml
+  when: admin_users | length > 0
+
+- name: Create extra filesystems
+  ansible.builtin.include_tasks: filesystems.yml
+  loop: "{{ extra_filesystems }}"
+  loop_control:
+    loop_var: fs
+    label: "{{ fs.mount }}"

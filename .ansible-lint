@@ -1,0 +1,9 @@
+---
+profile: production
+exclude_paths:
+  - .ansible/
+  - reports/
+skip_list:
+  # Inventory-wide variables (vm_*, stig_*, server_roles...) are shared by
+  # several roles on purpose, so role-prefixed names would hurt readability.
+  - var-naming[no-role-prefix]

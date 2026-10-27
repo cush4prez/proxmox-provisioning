@@ -1,0 +1,9 @@
+---
+- name: Preflight
+  ansible.builtin.import_playbook: preflight.yml
+
+- name: Base OS configuration
+  hosts: rhel_nodes
+  tags: [base]
+  roles:
+    - common

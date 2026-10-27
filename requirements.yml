@@ -1,0 +1,19 @@
+---
+# Install with:
+#   ansible-galaxy collection install -r requirements.yml
+#   ansible-galaxy role install -r requirements.yml
+# Requires ansible-core >= 2.17 (community.proxmox / community.general).
+# RHEL 8 targets must be configured with ansible-core 2.16 -- see
+# requirements-core216.yml and docs/RHEL8.md.
+collections:
+  - name: community.proxmox
+    version: ">=1.0.0"
+  - name: community.general
+    version: ">=10.0.0"
+  - name: ansible.posix
+    version: ">=1.5.0"
+
+roles:
+  - name: RedHatOfficial.rhel8_stig
+  - name: RedHatOfficial.rhel9_stig
+  - name: RedHatOfficial.rhel10_stig

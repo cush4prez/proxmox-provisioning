@@ -1,0 +1,21 @@
+---
+# Networks allowed to query (and recurse through) this server.
+dns_listen_networks: []
+dns_listen_ipv6: false
+dns_recursion: true
+dns_forwarders: []
+dns_forward_only: false
+dns_dnssec_validation: auto      # auto | yes | no
+dns_zone_ttl: 3600
+dns_zone_admin: ""            # SOA contact; default hostmaster.<zone name>
+
+# Zones this server is authoritative for.
+#   - name: myhome.lab
+#     type: primary                  # primary (default) | secondary
+#     primaries: [192.168.10.11]     # secondary only
+#     nameservers: [ns01.myhome.lab.]   # default: this host
+#     allow_transfer: [192.168.10.12]
+#     records:
+#       - {name: www, type: A, value: 192.168.10.50}
+#       - {name: "@", type: MX, value: "10 mail.myhome.lab."}
+dns_zones: []

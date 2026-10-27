@@ -1,0 +1,31 @@
+---
+aap_version: "2.6"
+# Containerized installer support per AAP release -- verify against the AAP
+# lifecycle / installation guide and update as needed. (AAP 2.5+ does not
+# support RHEL 8.)
+aap_supported_rhel:
+  "2.5": [9]
+  "2.6": [9, 10]
+aap_min_memory_mb: 15000            # 16 GB required for an all-in-one install
+aap_min_cpus: 4
+
+# Installer media: either a local file on the controller (copied up) or a URL.
+aap_setup_bundle: ""
+aap_setup_bundle_url: ""
+aap_bundle_install: true            # false = online installer, pulls from registry.redhat.io
+aap_registry_username: "{{ vault_registry_username | default('') }}"
+aap_registry_password: "{{ vault_registry_password | default('') }}"
+
+# Installer runs as the (non-root) SSH user, as Red Hat requires.
+aap_install_user: "{{ ansible_user }}"
+aap_setup_dir: "/home/{{ aap_install_user }}/aap-setup"
+
+aap_install_hub: true
+aap_install_eda: true
+aap_admin_password: "{{ vault_aap_admin_password }}"
+aap_pg_password: "{{ vault_aap_pg_password }}"
+aap_controller_memory_capacity: 0.5
+# Extra key=value settings appended to the installer inventory [all:vars].
+aap_installer_extra_vars: {}
+
+aap_firewall_ports: [80/tcp, 443/tcp, 27199/tcp]

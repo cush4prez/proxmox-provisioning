@@ -1,0 +1,17 @@
+---
+# All of these are normally supplied by inventory (group_vars/all + host_vars).
+vm_name: "{{ inventory_hostname }}"
+vm_node: "{{ proxmox_default_node }}"
+# Node holding the template. If it differs from vm_node the clone is created
+# on vm_node via "target", which needs the template on shared storage.
+vm_template_node: "{{ proxmox_template_node | default(vm_node) }}"
+vm_template: "{{ proxmox_templates[rhel_version | int] }}"
+vm_full_clone: true
+vm_state: present               # present | absent
+vm_tags: >-
+  {{ ['ansible', 'rhel' ~ rhel_version] + (['stig'] if stig_enabled | bool else []) + server_roles }}
+vm_description: >-
+  Managed by proxmox-provisioning. RHEL {{ rhel_version }};
+  roles: {{ server_roles | join(', ') or 'base' }}; STIG: {{ stig_enabled | bool }}
+vm_clone_timeout: 900
+vm_ssh_wait_timeout: 900

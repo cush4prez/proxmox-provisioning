@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+{% for server in ntp_upstream_servers %}
+server {{ server }} iburst{{ ' maxpoll 16' if stig_enabled | bool else '' }}
+{% endfor %}
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+keyfile /etc/chrony.keys
+leapsectz right/UTC
+logdir /var/log/chrony
+
+# Clients allowed to sync from this server
+{% for net in ntp_allowed_networks %}
+allow {{ net }}
+{% endfor %}
+{% if ntp_serve_when_unsynced | bool %}
+local stratum {{ ntp_local_stratum }}
+{% endif %}
+{% if stig_enabled | bool %}
+# DISA STIG: no network access to chronyc
+cmdport 0
+{% endif %}

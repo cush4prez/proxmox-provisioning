@@ -1,0 +1,80 @@
+---
+- name: Look up existing VM
+  community.proxmox.proxmox_vm_info:
+    vmid: "{{ vm_id }}"
+    type: qemu
+  register: _vm_info
+
+- name: Clone VM from template {{ vm_template }}
+  community.proxmox.proxmox_kvm:
+    node: "{{ vm_template_node }}"
+    target: "{{ vm_node if vm_node != vm_template_node else omit }}"
+    clone: "{{ vm_template }}"
+    newid: "{{ vm_id }}"
+    name: "{{ vm_name }}"
+    full: "{{ vm_full_clone }}"
+    storage: "{{ vm_storage if vm_full_clone else omit }}"
+    timeout: "{{ vm_clone_timeout }}"
+  when: _vm_info.proxmox_vms | length == 0
+
+- name: Set hardware and cloud-init settings
+  community.proxmox.proxmox_kvm:
+    node: "{{ vm_node }}"
+    vmid: "{{ vm_id }}"
+    name: "{{ vm_name }}"
+    update: true
+    cores: "{{ vm_cores }}"
+    sockets: "{{ vm_sockets }}"
+    cpu: "{{ vm_cpu_type }}"
+    memory: "{{ vm_memory }}"
+    agent: "enabled=1"
+    onboot: "{{ vm_onboot }}"
+    tags: "{{ vm_tags }}"
+    description: "{{ vm_description }}"
+    ciuser: "{{ vm_ci_user }}"
+    cipassword: "{{ vm_ci_password }}"
+    sshkeys: "{{ vm_ssh_public_keys | join('\n') }}"
+    ipconfig:
+      ipconfig0: "{{ ('ip=' ~ vm_ip ~ '/' ~ vm_prefix ~ ',gw=' ~ vm_gateway) if vm_ip is defined else 'ip=dhcp' }}"
+    nameservers: "{{ vm_dns_servers }}"
+    searchdomains: "{{ vm_search_domains }}"
+  no_log: true
+
+- name: Configure primary NIC
+  community.proxmox.proxmox_nic:
+    vmid: "{{ vm_id }}"
+    interface: net0
+    model: virtio
+    bridge: "{{ vm_bridge }}"
+    tag: "{{ vm_vlan if vm_vlan | string | length > 0 else omit }}"
+
+- name: Grow boot disk to {{ vm_disk_size }}
+  community.proxmox.proxmox_disk:
+    vmid: "{{ vm_id }}"
+    disk: "{{ vm_disk }}"
+    size: "{{ vm_disk_size }}"
+    state: resized
+
+- name: Attach extra disks
+  community.proxmox.proxmox_disk:
+    vmid: "{{ vm_id }}"
+    disk: "{{ item.disk }}"
+    size: "{{ item.size }}"
+    storage: "{{ item.storage | default(vm_storage) }}"
+    state: present
+  loop: "{{ vm_extra_disks }}"
+  loop_control:
+    label: "{{ item.disk }} ({{ item.size }}G)"
+
+- name: Start VM
+  community.proxmox.proxmox_kvm:
+    node: "{{ vm_node }}"
+    vmid: "{{ vm_id }}"
+    state: started
+
+- name: Wait for SSH on {{ ansible_host }}
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    search_regex: OpenSSH
+    timeout: "{{ vm_ssh_wait_timeout }}"

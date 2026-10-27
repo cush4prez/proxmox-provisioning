@@ -1,0 +1,6 @@
+---
+# RHEL-version specific settings for the base role.
+common_version_packages: [dnf-plugins-core, python3-libselinux]
+# sshd_config includes sshd_config.d/*.conf first and the first value wins, so
+# settings go in a drop-in that sorts ahead of 50-cloud-init.conf.
+common_sshd_dropin: true

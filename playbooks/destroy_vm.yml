@@ -1,0 +1,18 @@
+---
+# Permanently deletes VMs. Always use --limit:
+#   ansible-playbook playbooks/destroy_vm.yml --limit util01.myhome.lab -e confirm_destroy=yes
+- name: Destroy Proxmox VMs
+  hosts: rhel_nodes
+  gather_facts: false
+  vars:
+    vm_state: absent
+  pre_tasks:
+    - name: Require explicit confirmation
+      ansible.builtin.assert:
+        that: confirm_destroy | default('') == 'yes'
+        fail_msg: "Refusing to delete VMs without -e confirm_destroy=yes"
+        quiet: true
+      run_once: true
+      delegate_to: localhost
+  roles:
+    - proxmox_vm

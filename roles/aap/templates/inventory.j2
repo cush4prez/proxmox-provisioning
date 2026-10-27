@@ -1,0 +1,62 @@
+# {{ ansible_managed }}
+# AAP {{ aap_version }} containerized installer -- all-in-one ("growth") topology.
+[automationgateway]
+{{ inventory_hostname }}
+
+[automationcontroller]
+{{ inventory_hostname }}
+
+{% if aap_install_hub | bool %}
+[automationhub]
+{{ inventory_hostname }}
+
+{% endif %}
+{% if aap_install_eda | bool %}
+[automationeda]
+{{ inventory_hostname }}
+
+{% endif %}
+[database]
+{{ inventory_hostname }}
+
+[all:vars]
+ansible_connection=local
+ansible_become_password={{ ansible_become_password }}
+
+{% if aap_bundle_install | bool %}
+bundle_install=true
+bundle_dir={{ aap_setup_dir }}/bundle
+{% else %}
+registry_username={{ aap_registry_username }}
+registry_password={{ aap_registry_password }}
+{% endif %}
+
+postgresql_admin_username=postgres
+postgresql_admin_password={{ aap_pg_password }}
+redis_mode=standalone
+
+gateway_admin_password={{ aap_admin_password }}
+gateway_pg_host={{ inventory_hostname }}
+gateway_pg_password={{ aap_pg_password }}
+
+controller_admin_password={{ aap_admin_password }}
+controller_pg_host={{ inventory_hostname }}
+controller_pg_password={{ aap_pg_password }}
+controller_percent_memory_capacity={{ aap_controller_memory_capacity }}
+
+{% if aap_install_hub | bool %}
+hub_admin_password={{ aap_admin_password }}
+hub_pg_host={{ inventory_hostname }}
+hub_pg_password={{ aap_pg_password }}
+hub_seed_collections=false
+
+{% endif %}
+{% if aap_install_eda | bool %}
+eda_admin_password={{ aap_admin_password }}
+eda_pg_host={{ inventory_hostname }}
+eda_pg_password={{ aap_pg_password }}
+
+{% endif %}
+{% for key, value in aap_installer_extra_vars.items() %}
+{{ key }}={{ value }}
+{% endfor %}

@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: satellite
+  author: proxmox-provisioning
+  description: Install Red Hat Satellite on RHEL
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions: ["8", "9"]
+dependencies: []

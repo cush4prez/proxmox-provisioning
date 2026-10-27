@@ -1,0 +1,21 @@
+---
+# Everything after VM creation: base OS -> DISA STIG (if enabled) -> server roles.
+# The STIG is applied before the server roles so they are installed on a
+# hardened baseline and their configs are not reverted by the STIG role.
+- name: Base OS
+  ansible.builtin.import_playbook: configure_base.yml
+
+- name: DISA STIG
+  ansible.builtin.import_playbook: apply_stig.yml
+
+- name: NTP servers
+  ansible.builtin.import_playbook: configure_ntp.yml
+
+- name: DNS servers
+  ansible.builtin.import_playbook: configure_dns.yml
+
+- name: Satellite servers
+  ansible.builtin.import_playbook: configure_satellite.yml
+
+- name: AAP servers
+  ansible.builtin.import_playbook: configure_aap.yml

@@ -1,0 +1,33 @@
+---
+# DNS + NTP server, RHEL 9, DISA STIG hardened
+rhel_version: 9
+stig_enabled: true
+server_roles: [dns, ntp]
+
+vm_id: 9101
+vm_cores: 2
+vm_memory: 4096
+vm_disk_size: 40G
+vm_ip: 192.168.10.11
+
+ntp_allowed_networks: [192.168.10.0/24]
+
+dns_listen_networks: [192.168.10.0/24]
+dns_forwarders: [1.1.1.1, 9.9.9.9]
+dns_zone_admin: hostmaster.myhome.lab   # SOA contact for all zones
+dns_zones:
+  - name: myhome.lab
+    records:
+      - {name: ns01, type: A, value: 192.168.10.11}
+      - {name: ntp01, type: A, value: 192.168.10.12}
+      - {name: sat01, type: A, value: 192.168.10.20}
+      - {name: aap01, type: A, value: 192.168.10.30}
+      - {name: util01, type: A, value: 192.168.10.40}
+      - {name: pve01, type: A, value: 192.168.10.5}
+  - name: 10.168.192.in-addr.arpa
+    records:
+      - {name: "11", type: PTR, value: ns01.myhome.lab.}
+      - {name: "12", type: PTR, value: ntp01.myhome.lab.}
+      - {name: "20", type: PTR, value: sat01.myhome.lab.}
+      - {name: "30", type: PTR, value: aap01.myhome.lab.}
+      - {name: "40", type: PTR, value: util01.myhome.lab.}

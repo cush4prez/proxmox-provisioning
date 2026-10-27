@@ -1,0 +1,10 @@
+---
+# Applies the DISA STIG only to nodes with stig_enabled: true.
+- name: Preflight
+  ansible.builtin.import_playbook: preflight.yml
+
+- name: Apply DISA STIG
+  hosts: stig
+  tags: [stig]
+  roles:
+    - stig_compliance

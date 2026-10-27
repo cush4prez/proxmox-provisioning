@@ -1,0 +1,6 @@
+---
+# Networks allowed to query this server (chrony "allow" directives).
+ntp_allowed_networks: []
+# Serve time even when upstreams are unreachable (air-gapped sites).
+ntp_local_stratum: 10
+ntp_serve_when_unsynced: true

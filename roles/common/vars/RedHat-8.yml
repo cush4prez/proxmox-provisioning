@@ -1,0 +1,5 @@
+---
+# RHEL-version specific settings for the base role.
+common_version_packages: [dnf-plugins-core, python3-libselinux]
+# RHEL 8 sshd_config has no Include, so settings go in a block at its top.
+common_sshd_dropin: false

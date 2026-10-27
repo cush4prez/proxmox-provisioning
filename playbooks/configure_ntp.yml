@@ -1,0 +1,9 @@
+---
+- name: Preflight
+  ansible.builtin.import_playbook: preflight.yml
+
+- name: Configure NTP (chrony) servers
+  hosts: role_ntp
+  tags: [ntp]
+  roles:
+    - ntp

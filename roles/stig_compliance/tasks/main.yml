@@ -1,0 +1,48 @@
+---
+- name: Guard against locking Ansible out of sudo
+  ansible.builtin.assert:
+    that: >-
+      not (sudo_remove_nopasswd | default(true) | bool)
+      or (ansible_become_password | default('') | length > 0)
+    fail_msg: >-
+      The STIG removes NOPASSWD from sudoers, after which Ansible needs a become
+      password. Set vault_vm_ci_password (used as ansible_become_password), or set
+      sudo_remove_nopasswd: false and document the deviation.
+    quiet: true
+
+- name: Enable FIPS mode
+  ansible.builtin.include_tasks: fips.yml
+  when: stig_enable_fips | bool
+
+- name: Apply role-specific STIG exceptions
+  ansible.builtin.set_fact:
+    "{{ item.key }}": "{{ item.value }}"
+  loop: "{{ server_roles | map('extract', stig_role_exceptions) | map('dict2items') | flatten }}"
+  when: stig_auto_exceptions | bool
+
+- name: Check whether the STIG has been applied before
+  ansible.builtin.stat:
+    path: /etc/ansible-stig-applied
+  register: _stig_marker
+
+- name: Apply DISA STIG with {{ stig_role_name }}
+  ansible.builtin.include_role:
+    name: "{{ stig_role_name }}"
+
+- name: Record STIG application
+  ansible.builtin.copy:
+    dest: /etc/ansible-stig-applied
+    content: "{{ stig_role_name }} first applied {{ ansible_facts['date_time']['iso8601'] }}\n"
+    mode: "0644"
+  when: not _stig_marker.stat.exists
+
+- name: Reboot after first STIG application
+  ansible.builtin.reboot:
+    reboot_timeout: 900
+  when:
+    - stig_reboot | bool
+    - not _stig_marker.stat.exists
+
+- name: Scan for DISA STIG compliance
+  ansible.builtin.include_tasks: scan.yml
+  when: stig_scan | bool

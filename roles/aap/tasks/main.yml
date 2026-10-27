@@ -1,0 +1,118 @@
+---
+- name: Check AAP prerequisites
+  ansible.builtin.assert:
+    that:
+      - aap_version in aap_supported_rhel
+      - (rhel_version | int) in aap_supported_rhel[aap_version]
+      - ansible_facts['memtotal_mb'] >= aap_min_memory_mb
+      - ansible_facts['processor_vcpus'] >= aap_min_cpus
+      - aap_setup_bundle | length > 0 or aap_setup_bundle_url | length > 0
+      - aap_install_user != 'root'
+      - aap_bundle_install | bool or aap_registry_username | length > 0
+    fail_msg: >-
+      AAP {{ aap_version }} needs RHEL {{ aap_supported_rhel[aap_version] | default('?') }},
+      >= {{ aap_min_memory_mb }} MB RAM, >= {{ aap_min_cpus }} vCPUs, a non-root install
+      user, and aap_setup_bundle or aap_setup_bundle_url (plus registry credentials
+      for the online installer). Host has RHEL {{ rhel_version }},
+      {{ ansible_facts['memtotal_mb'] }} MB, {{ ansible_facts['processor_vcpus'] }} vCPUs.
+
+- name: Check that the FQDN resolves
+  ansible.builtin.command: getent hosts {{ inventory_hostname }}
+  changed_when: false
+
+- name: Install installer dependencies
+  ansible.builtin.dnf:
+    name: [ansible-core, podman, wget, git-core, rsync, tar]
+    state: present
+
+- name: Open AAP firewall ports
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ aap_firewall_ports }}"
+
+- name: Enable lingering for {{ aap_install_user }}
+  ansible.builtin.command: loginctl enable-linger {{ aap_install_user }}
+  args:
+    creates: "/var/lib/systemd/linger/{{ aap_install_user }}"
+
+- name: Stage and run the installer as {{ aap_install_user }}
+  become: true
+  become_user: "{{ aap_install_user }}"
+  block:
+    - name: Create setup directory
+      ansible.builtin.file:
+        path: "{{ aap_setup_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Check whether the installer is already extracted
+      ansible.builtin.stat:
+        path: "{{ aap_setup_dir }}/.extracted"
+      register: _aap_extracted
+
+    - name: Copy setup bundle from the controller
+      ansible.builtin.copy:
+        src: "{{ aap_setup_bundle }}"
+        dest: "{{ aap_setup_dir }}/../aap-setup.tar.gz"
+        mode: "0600"
+      when:
+        - not _aap_extracted.stat.exists
+        - aap_setup_bundle | length > 0
+
+    - name: Download setup bundle
+      ansible.builtin.get_url:
+        url: "{{ aap_setup_bundle_url }}"
+        dest: "{{ aap_setup_dir }}/../aap-setup.tar.gz"
+        mode: "0600"
+      when:
+        - not _aap_extracted.stat.exists
+        - aap_setup_bundle | length == 0
+
+    - name: Extract setup bundle
+      ansible.builtin.unarchive:
+        src: "{{ aap_setup_dir }}/../aap-setup.tar.gz"
+        dest: "{{ aap_setup_dir }}"
+        remote_src: true
+        extra_opts: [--strip-components=1]
+      when: not _aap_extracted.stat.exists
+
+    - name: Mark installer extracted
+      ansible.builtin.file:
+        path: "{{ aap_setup_dir }}/.extracted"
+        state: touch
+        mode: "0600"
+      when: not _aap_extracted.stat.exists
+
+    - name: Remove setup archive
+      ansible.builtin.file:
+        path: "{{ aap_setup_dir }}/../aap-setup.tar.gz"
+        state: absent
+
+    - name: Write installer inventory
+      ansible.builtin.template:
+        src: inventory.j2
+        dest: "{{ aap_setup_dir }}/inventory-provisioning"
+        mode: "0600"
+      no_log: true
+
+    - name: Run containerized installer (30-90 minutes)
+      ansible.builtin.shell: >-
+        ansible-playbook -i inventory-provisioning ansible.containerized_installer.install
+        > install.log 2>&1 && touch .installed
+      args:
+        chdir: "{{ aap_setup_dir }}"
+        creates: "{{ aap_setup_dir }}/.installed"
+      async: 7200
+      poll: 60
+
+- name: Wait for the platform gateway
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/api/gateway/v1/ping/"
+    validate_certs: false
+  register: _gw_ping
+  until: _gw_ping.status == 200
+  retries: 30
+  delay: 10

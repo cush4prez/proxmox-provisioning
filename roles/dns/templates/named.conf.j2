@@ -1,0 +1,70 @@
+// {{ ansible_managed }}
+acl "trusted" {
+    localhost;
+    localnets;
+{% for net in dns_listen_networks %}
+    {{ net }};
+{% endfor %}
+};
+
+options {
+    listen-on port 53 { any; };
+    listen-on-v6 port 53 { {{ 'any' if dns_listen_ipv6 | bool else 'none' }}; };
+    directory       "/var/named";
+    dump-file       "/var/named/data/cache_dump.db";
+    statistics-file "/var/named/data/named_stats.txt";
+    memstatistics-file "/var/named/data/named_mem_stats.txt";
+    secroots-file   "/var/named/data/named.secroots";
+    recursing-file  "/var/named/data/named.recursing";
+
+    allow-query     { trusted; };
+    allow-transfer  { none; };
+    recursion {{ 'yes' if dns_recursion | bool else 'no' }};
+{% if dns_recursion | bool %}
+    allow-recursion { trusted; };
+{% endif %}
+{% if dns_forwarders | length > 0 %}
+    forwarders { {% for f in dns_forwarders %}{{ f }}; {% endfor %}};
+    forward {{ 'only' if dns_forward_only | bool else 'first' }};
+{% endif %}
+    dnssec-validation {{ dns_dnssec_validation }};
+    version "not disclosed";
+
+    managed-keys-directory "/var/named/dynamic";
+    geoip-directory "/usr/share/GeoIP";
+    pid-file "/run/named/named.pid";
+    session-keyfile "/run/named/session.key";
+    include "/etc/crypto-policies/back-ends/bind.config";
+};
+
+logging {
+    channel default_debug {
+        file "data/named.run";
+        severity dynamic;
+    };
+};
+
+zone "." IN {
+    type hint;
+    file "named.ca";
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
+
+{% for zone in dns_zones %}
+zone "{{ zone.name }}" IN {
+{% if zone.type | default('primary') == 'secondary' %}
+    type {{ dns_keyword_secondary }};
+    {{ dns_keyword_primaries }} { {% for p in zone.primaries %}{{ p }}; {% endfor %}};
+    file "slaves/{{ zone.name }}.zone";
+{% else %}
+    type {{ dns_keyword_primary }};
+    file "{{ zone.name }}.zone";
+{% endif %}
+{% if zone.allow_transfer is defined %}
+    allow-transfer { {% for a in zone.allow_transfer %}{{ a }}; {% endfor %}};
+{% endif %}
+};
+
+{% endfor %}

@@ -1,0 +1,37 @@
+---
+# LVM via CLI so the role works under ansible-core 2.16 without community.general.
+- name: Create volume group {{ fs.vg }}
+  ansible.builtin.command: vgcreate {{ fs.vg }} {{ fs.device }}
+  args:
+    creates: "/dev/{{ fs.vg }}"
+
+- name: Create logical volume {{ fs.lv }}
+  ansible.builtin.command: >-
+    lvcreate -y -n {{ fs.lv }}
+    {{ ('-l ' ~ fs.size) if '%' in (fs.size | default('100%FREE')) else ('-L ' ~ fs.size) }}
+    {{ fs.vg }}
+  args:
+    creates: "/dev/{{ fs.vg }}/{{ fs.lv }}"
+
+- name: Check for an existing filesystem on {{ fs.lv }}
+  ansible.builtin.command: blkid -o value -s TYPE /dev/{{ fs.vg }}/{{ fs.lv }}
+  register: _fs_type
+  changed_when: false
+  failed_when: false
+
+- name: Create filesystem on /dev/{{ fs.vg ~ "/" ~ fs.lv }}
+  ansible.builtin.command: mkfs -t {{ fs.fstype | default('xfs') }} /dev/{{ fs.vg }}/{{ fs.lv }}
+  when: _fs_type.stdout | length == 0
+  changed_when: true
+
+- name: Mount {{ fs.mount }}
+  ansible.posix.mount:
+    path: "{{ fs.mount }}"
+    src: "/dev/{{ fs.vg }}/{{ fs.lv }}"
+    fstype: "{{ fs.fstype | default('xfs') }}"
+    opts: "{{ fs.opts | default('defaults') }}"
+    state: mounted
+
+- name: Restore SELinux context on {{ fs.mount }}
+  ansible.builtin.command: restorecon -R {{ fs.mount }}
+  changed_when: false

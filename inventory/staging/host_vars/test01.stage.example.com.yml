@@ -1,0 +1,8 @@
+---
+rhel_version: 9
+stig_enabled: false
+server_roles: [ntp]
+
+vm_id: 9501
+vm_ip: 192.168.50.10
+ntp_allowed_networks: [192.168.50.0/24]

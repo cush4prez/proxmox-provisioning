@@ -1,0 +1,26 @@
+---
+# The zone file carries a checksum of its records. It is only rewritten (with a
+# new, time-based SOA serial) when the records change, so re-runs are
+# idempotent and secondaries always see an increasing serial. A zone that fails
+# validation keeps its old checksum and is retried on the next run.
+- name: Read current zone file for {{ zone.name }}
+  ansible.builtin.slurp:
+    src: "/var/named/{{ zone.name }}.zone"
+  register: _zone_current
+  failed_when: false
+
+- name: Write zone file {{ zone.name }}
+  ansible.builtin.template:
+    src: zone.j2
+    dest: "/var/named/{{ zone.name }}.zone"
+    owner: root
+    group: named
+    mode: "0640"
+    validate: "named-checkzone {{ zone.name }} %s"
+  vars:
+    zone_records: "{{ lookup('ansible.builtin.template', 'zone-records.j2') }}"
+    zone_records_sha1: "{{ zone_records | hash('sha1') }}"
+    zone_serial: "{{ now().timestamp() | int }}"
+  when: >-
+    ('; records-sha1: ' ~ zone_records_sha1) not in (_zone_current.content | default('') | b64decode)
+  notify: Reload named

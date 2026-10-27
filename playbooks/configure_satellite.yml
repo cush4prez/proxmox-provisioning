@@ -1,0 +1,9 @@
+---
+- name: Preflight
+  ansible.builtin.import_playbook: preflight.yml
+
+- name: Configure Red Hat Satellite servers
+  hosts: role_satellite
+  tags: [satellite]
+  roles:
+    - satellite

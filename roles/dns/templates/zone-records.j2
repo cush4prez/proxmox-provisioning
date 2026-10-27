@@ -1,0 +1,6 @@
+{% for ns in zone.nameservers | default([inventory_hostname ~ '.']) %}
+@	IN	NS	{{ ns }}
+{% endfor %}
+{% for r in zone.records | default([]) %}
+{{ r.name }}	{{ r.ttl | default('') }}	IN	{{ r.type }}	{{ r.value }}
+{% endfor %}

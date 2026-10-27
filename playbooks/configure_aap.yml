@@ -1,0 +1,9 @@
+---
+- name: Preflight
+  ansible.builtin.import_playbook: preflight.yml
+
+- name: Configure Ansible Automation Platform servers
+  hosts: role_aap
+  tags: [aap]
+  roles:
+    - aap

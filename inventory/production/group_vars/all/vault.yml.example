@@ -1,0 +1,14 @@
+---
+# Copy to vault.yml, fill in, then encrypt:
+#   cp vault.yml.example vault.yml && ansible-vault encrypt vault.yml
+vault_proxmox_api_token_secret: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+vault_vm_ci_password: "ChangeMe-Str0ng!Passw0rd"
+
+# Only needed for the matching roles / registration methods
+vault_rhsm_username: ""
+vault_rhsm_password: ""
+vault_satellite_admin_password: "ChangeMe-Satellite"
+vault_aap_admin_password: "ChangeMe-AAP"
+vault_aap_pg_password: "ChangeMe-Postgres"
+vault_registry_username: ""        # registry.redhat.io service account (AAP)
+vault_registry_password: ""

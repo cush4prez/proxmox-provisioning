@@ -1,0 +1,23 @@
+---
+# Create (or update) the Proxmox VMs. Runs against the Proxmox API from the
+# controller; needs ansible-core >= 2.17 and python3-proxmoxer.
+- name: Provision VMs on Proxmox
+  hosts: rhel_nodes
+  gather_facts: false
+  tags: [provision]
+  roles:
+    - proxmox_vm
+
+- name: Wait for guests to accept Ansible connections
+  hosts: rhel_nodes
+  gather_facts: false
+  tags: [provision]
+  tasks:
+    - name: Wait for connection
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+
+    - name: Wait for cloud-init to finish
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false

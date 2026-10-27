@@ -1,0 +1,59 @@
+---
+- name: Load variables for RHEL {{ rhel_version }}
+  ansible.builtin.include_vars: "RedHat-{{ ansible_facts['distribution_major_version'] }}.yml"
+
+- name: Check Satellite prerequisites
+  ansible.builtin.assert:
+    that:
+      - satellite_version in satellite_supported_rhel
+      - (rhel_version | int) in satellite_supported_rhel[satellite_version]
+      - ansible_facts['memtotal_mb'] >= satellite_min_memory_mb
+      - ansible_facts['processor_vcpus'] >= satellite_min_cpus
+    fail_msg: >-
+      Satellite {{ satellite_version }} needs RHEL
+      {{ satellite_supported_rhel[satellite_version] | default('?') }},
+      >= {{ satellite_min_memory_mb }} MB RAM and >= {{ satellite_min_cpus }} vCPUs.
+      Host has RHEL {{ rhel_version }}, {{ ansible_facts['memtotal_mb'] }} MB,
+      {{ ansible_facts['processor_vcpus'] }} vCPUs.
+
+- name: Check that the FQDN resolves
+  ansible.builtin.command: getent hosts {{ inventory_hostname }}
+  changed_when: false
+
+- name: Enable Satellite repositories
+  ansible.builtin.include_tasks: repos.yml
+  when: satellite_manage_repos | bool
+
+- name: Open Satellite firewall ports
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ satellite_firewall_ports }}"
+
+- name: Install Satellite packages
+  ansible.builtin.dnf:
+    name: satellite
+    state: present
+
+- name: Run satellite-installer (20-60 minutes)
+  # umask 0022 is required by the installer; DISA STIG sets 077 for logins.
+  ansible.builtin.shell: >-
+    umask 0022 &&
+    satellite-installer --scenario satellite
+    --foreman-initial-organization {{ satellite_organization | quote }}
+    --foreman-initial-location {{ satellite_location | quote }}
+    --foreman-initial-admin-username {{ satellite_admin_username | quote }}
+    --foreman-initial-admin-password {{ satellite_admin_password | quote }}
+    {{ satellite_installer_extra_args | join(' ') }}
+    && touch /etc/foreman-installer/.ansible-installed
+  args:
+    creates: /etc/foreman-installer/.ansible-installed
+  async: 7200
+  poll: 60
+  no_log: true    # hides the admin password; see /var/log/foreman-installer/satellite.log on failure
+
+- name: Upload manifest and sync content
+  ansible.builtin.include_tasks: content.yml
+  when: satellite_manifest_file | length > 0

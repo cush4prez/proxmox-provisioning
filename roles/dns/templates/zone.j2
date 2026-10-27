@@ -1,0 +1,10 @@
+; {{ ansible_managed }}
+; records-sha1: {{ zone_records_sha1 }}
+$TTL {{ zone.ttl | default(dns_zone_ttl) }}
+@	IN	SOA	{{ (zone.nameservers | default([inventory_hostname ~ '.']))[0] }} {{ zone.admin | default(dns_zone_admin, true) | default('hostmaster.' ~ zone.name, true) }}. (
+		{{ zone_serial }}	; serial
+		3600		; refresh
+		900		; retry
+		1209600		; expire
+		300 )		; negative cache TTL
+{{ zone_records }}

@@ -1,0 +1,36 @@
+---
+- name: Read FIPS state
+  ansible.builtin.slurp:
+    src: /proc/sys/crypto/fips_enabled
+  register: _fips
+
+- name: Enable FIPS on RHEL {{ rhel_version }}
+  when:
+    - (_fips.content | b64decode | trim) != '1'
+    - (rhel_version | int) in [8, 9]
+  block:
+    - name: Run fips-mode-setup
+      ansible.builtin.command: fips-mode-setup --enable
+      changed_when: true
+
+    - name: Reboot into FIPS mode
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+
+- name: Report FIPS state on RHEL 10
+  when:
+    - (_fips.content | b64decode | trim) != '1'
+    - (rhel_version | int) >= 10
+  block:
+    - name: Fail when FIPS is required
+      ansible.builtin.fail:
+        msg: >-
+          RHEL 10 cannot switch to FIPS mode after installation. Rebuild the
+          Proxmox template with the fips=1 kernel argument at install time.
+      when: stig_require_fips | bool
+
+    - name: Warn that FIPS is off
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: {{ inventory_hostname }} is not in FIPS mode. RHEL 10 only enables FIPS at
+          install time (fips=1). The STIG FIPS rule will be reported as a finding.

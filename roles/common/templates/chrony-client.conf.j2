@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+{% for server in chrony_servers %}
+server {{ server }} iburst{{ ' maxpoll 16' if stig_enabled | bool else '' }}
+{% endfor %}
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+keyfile /etc/chrony.keys
+leapsectz right/UTC
+logdir /var/log/chrony
+{% if stig_enabled | bool %}
+# DISA STIG: client only, no network access to chronyc
+port 0
+cmdport 0
+{% endif %}

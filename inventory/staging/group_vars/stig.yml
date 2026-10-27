@@ -1,0 +1,18 @@
+---
+# Applies to nodes with stig_enabled: true (dynamic group "stig").
+#
+# Any RedHatOfficial STIG role variable can be set here (all STIG nodes) or in
+# host_vars (one node). Each rule is a boolean named after the rule, e.g.:
+#   sudo_remove_nopasswd: false        # keep NOPASSWD sudo (document the deviation!)
+#   mount_option_tmp_noexec: false
+#   package_tuned_removed: false
+# Full list: ~/.ansible/roles/RedHatOfficial.rhel9_stig/defaults/main.yml
+
+# Time servers the STIG role writes into chrony.conf.
+var_multiple_time_servers: "{{ chrony_servers | join(',') }}"
+
+# FIPS, reboot and scan behaviour of roles/stig_compliance:
+# stig_enable_fips: true
+# stig_require_fips: false
+# stig_reboot: true
+# stig_scan: true

@@ -1,0 +1,23 @@
+# Secrets -- commit only ansible-vault ENCRYPTED copies, never plaintext
+.vault_pass*
+**/group_vars/all/vault.yml
+!**/group_vars/all/vault.yml.example
+
+# Ansible runtime artifacts
+.ansible/
+*.retry
+reports/
+artifacts/
+ansible-navigator.log
+
+# Installer media (Satellite manifests, AAP bundles)
+files/
+*.tar.gz
+manifest*.zip
+
+# Python / editors
+.venv*/
+__pycache__/
+*.pyc
+.vscode/
+.idea/

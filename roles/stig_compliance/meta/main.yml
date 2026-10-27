@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: stig_compliance
+  author: proxmox-provisioning
+  description: Apply the DISA STIG to RHEL 8/9/10 with role-aware exceptions
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions: ["8", "9", "10"]
+dependencies: []

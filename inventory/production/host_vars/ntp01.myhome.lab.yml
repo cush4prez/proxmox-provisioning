@@ -1,0 +1,13 @@
+---
+# Dedicated NTP server, RHEL 8, DISA STIG hardened.
+# NOTE: configuring RHEL 8 requires ansible-core 2.16 -- see docs/RHEL8.md
+rhel_version: 8
+stig_enabled: true
+server_roles: [ntp]
+
+vm_id: 9102
+vm_cores: 1
+vm_memory: 2048
+vm_ip: 192.168.10.12
+
+ntp_allowed_networks: [192.168.10.0/24]

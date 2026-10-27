@@ -1,0 +1,35 @@
+---
+# Runs on the controller (delegated) -- talks only to the Proxmox API.
+- name: Validate node definition
+  ansible.builtin.assert:
+    that:
+      - vm_id is defined
+      - (rhel_version | int) in [8, 9, 10]
+      - (rhel_version | int) in proxmox_templates
+      - proxmox_api_token_secret | length > 0
+      - server_roles | difference(['dns', 'ntp', 'satellite', 'aap']) | length == 0
+    fail_msg: >-
+      {{ inventory_hostname }}: needs vm_id, rhel_version 8/9/10 with a matching
+      proxmox_templates entry, a Proxmox API token secret, and server_roles drawn
+      from dns/ntp/satellite/aap.
+    quiet: true
+
+- name: Provision or remove the VM
+  module_defaults:
+    group/community.proxmox.proxmox:
+      api_host: "{{ proxmox_api_host }}"
+      api_port: "{{ proxmox_api_port }}"
+      api_user: "{{ proxmox_api_user }}"
+      api_token_id: "{{ proxmox_api_token_id }}"
+      api_token_secret: "{{ proxmox_api_token_secret }}"
+      validate_certs: "{{ proxmox_validate_certs }}"
+  delegate_to: localhost
+  become: false
+  block:
+    - name: Create VM
+      ansible.builtin.include_tasks: present.yml
+      when: vm_state == 'present'
+
+    - name: Remove VM
+      ansible.builtin.include_tasks: absent.yml
+      when: vm_state == 'absent'

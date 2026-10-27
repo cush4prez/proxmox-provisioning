@@ -1,0 +1,22 @@
+---
+# Red Hat Satellite server, RHEL 9, not STIG hardened
+rhel_version: 9
+stig_enabled: false
+server_roles: [satellite]
+registration_method: rhsm        # Satellite must be registered to the Red Hat CDN
+
+vm_id: 9120
+vm_cores: 4
+vm_memory: 32768
+vm_disk_size: 100G
+vm_ip: 192.168.10.20
+# Dedicated disk for /var/lib/pulp (content). Size in GiB.
+vm_extra_disks:
+  - {disk: scsi1, size: 500}
+extra_filesystems:
+  - {device: /dev/sdb, vg: vg_pulp, lv: lv_pulp, size: 100%FREE, mount: /var/lib/pulp, fstype: xfs}
+
+satellite_version: "6.17"
+satellite_organization: Lab
+satellite_location: Datacenter
+# satellite_manifest_file: files/manifest.zip   # optional, path on the controller

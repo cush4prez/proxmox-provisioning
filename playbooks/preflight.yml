@@ -1,0 +1,17 @@
+---
+- name: Preflight checks
+  hosts: rhel_nodes
+  gather_facts: false
+  tags: [always]
+  tasks:
+    - name: Check ansible-core can manage this RHEL version
+      ansible.builtin.assert:
+        that: >-
+          (rhel_version | int) != 8
+          or ansible_version.full is version('2.17', '<')
+          or (allow_rhel8_with_new_core | default(false) | bool)
+        fail_msg: >-
+          {{ inventory_hostname }} is RHEL 8 (Python 3.6) but this is ansible-core
+          {{ ansible_version.full }}, which requires Python >= 3.9 on targets. Configure
+          RHEL 8 nodes from an ansible-core 2.16 environment -- see docs/RHEL8.md.
+        quiet: true

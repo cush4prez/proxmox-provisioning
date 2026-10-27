@@ -1,0 +1,14 @@
+---
+- name: Stop VM {{ vm_id }}
+  community.proxmox.proxmox_kvm:
+    node: "{{ vm_node }}"
+    vmid: "{{ vm_id }}"
+    state: stopped
+    force: true
+    timeout: 120
+
+- name: Delete VM {{ vm_id }}
+  community.proxmox.proxmox_kvm:
+    node: "{{ vm_node }}"
+    vmid: "{{ vm_id }}"
+    state: absent

@@ -1,0 +1,37 @@
+---
+- name: Install chrony
+  ansible.builtin.dnf:
+    name: chrony
+    state: present
+
+- name: Configure chrony as a server
+  ansible.builtin.template:
+    src: chrony-server.conf.j2
+    dest: /etc/chrony.conf
+    mode: "0644"
+  notify: Restart chronyd
+
+- name: Enable chronyd
+  ansible.builtin.service:
+    name: chronyd
+    state: started
+    enabled: true
+
+- name: Allow NTP through the firewall
+  ansible.posix.firewalld:
+    service: ntp
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Apply chrony configuration before verifying
+  ansible.builtin.meta: flush_handlers
+
+- name: Show time sources
+  ansible.builtin.command: chronyc -n sources
+  register: _chrony_sources
+  changed_when: false
+
+- name: Report time sources
+  ansible.builtin.debug:
+    var: _chrony_sources.stdout_lines

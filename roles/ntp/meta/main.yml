@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: ntp
+  author: proxmox-provisioning
+  description: Chrony NTP server for RHEL 8/9/10
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions: ["8", "9", "10"]
+dependencies: []

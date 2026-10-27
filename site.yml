@@ -1,0 +1,9 @@
+---
+# Full build: create VMs on Proxmox, then configure them.
+#   ansible-playbook site.yml --limit ns01.myhome.lab
+# Selective phases with tags: provision, base, stig, ntp, dns, satellite, aap
+- name: Provision VMs
+  ansible.builtin.import_playbook: playbooks/provision_vm.yml
+
+- name: Configure nodes
+  ansible.builtin.import_playbook: playbooks/configure.yml

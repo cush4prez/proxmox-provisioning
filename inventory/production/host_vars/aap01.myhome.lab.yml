@@ -1,0 +1,18 @@
+---
+# Ansible Automation Platform (containerized, all-in-one), RHEL 9
+rhel_version: 9
+stig_enabled: false
+server_roles: [aap]
+registration_method: rhsm
+
+vm_id: 9130
+vm_cores: 4
+vm_memory: 16384
+vm_disk_size: 120G
+vm_ip: 192.168.10.30
+
+aap_version: "2.6"
+# Setup bundle downloaded from access.redhat.com, path on the controller
+aap_setup_bundle: files/ansible-automation-platform-containerized-setup-bundle-2.6-1-x86_64.tar.gz
+aap_install_hub: true
+aap_install_eda: true

@@ -1,0 +1,28 @@
+---
+- name: Install OpenSCAP
+  ansible.builtin.dnf:
+    name: [openscap-scanner, scap-security-guide]
+    state: present
+
+- name: Run oscap DISA STIG evaluation
+  ansible.builtin.command: >-
+    oscap xccdf eval --profile {{ stig_scap_profile }}
+    --results-arf /var/tmp/stig-arf.xml --report /var/tmp/stig-report.html
+    {{ stig_scap_datastream }}
+  register: _oscap
+  changed_when: false
+  # rc 0 = all pass, 2 = some rules failed (expected), anything else = error
+  failed_when: _oscap.rc not in [0, 2]
+
+- name: Summarize results
+  ansible.builtin.debug:
+    msg: >-
+      STIG scan: {{ _oscap.stdout | regex_findall('Result\s+pass') | length }} pass,
+      {{ _oscap.stdout | regex_findall('Result\s+fail') | length }} fail.
+      Report: {{ stig_report_dir }}/{{ inventory_hostname }}-stig-report.html
+
+- name: Fetch HTML report
+  ansible.builtin.fetch:
+    src: /var/tmp/stig-report.html
+    dest: "{{ stig_report_dir }}/{{ inventory_hostname }}-stig-report.html"
+    flat: true

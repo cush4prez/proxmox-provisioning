@@ -1,0 +1,38 @@
+---
+# Uses subscription-manager directly so this role works under ansible-core 2.16
+# (RHEL 8) without depending on community.general.
+- name: Check registration status
+  ansible.builtin.command: subscription-manager identity
+  register: _rhsm_identity
+  changed_when: false
+  failed_when: false
+
+- name: Install Satellite CA consumer package
+  ansible.builtin.dnf:
+    name: "http://{{ satellite_registration_server }}/pub/katello-ca-consumer-latest.noarch.rpm"
+    state: present
+    disable_gpg_check: true
+  when:
+    - registration_method == 'satellite'
+    - _rhsm_identity.rc != 0
+
+- name: Register using activation key ({{ registration_method }})
+  ansible.builtin.command: >-
+    subscription-manager register --org={{ rhsm_org_id | quote }}
+    --activationkey={{ rhsm_activation_key | quote }}
+  when:
+    - _rhsm_identity.rc != 0
+    - rhsm_activation_key | length > 0
+  no_log: true
+  changed_when: true
+
+- name: Register with RHSM using username/password
+  ansible.builtin.command: >-
+    subscription-manager register --username={{ rhsm_username | quote }}
+    --password={{ rhsm_password | quote }}
+  when:
+    - _rhsm_identity.rc != 0
+    - rhsm_activation_key | length == 0
+    - registration_method == 'rhsm'
+  no_log: true
+  changed_when: true

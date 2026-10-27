@@ -1,0 +1,9 @@
+---
+- name: Preflight
+  ansible.builtin.import_playbook: preflight.yml
+
+- name: Configure DNS (BIND) servers
+  hosts: role_dns
+  tags: [dns]
+  roles:
+    - dns

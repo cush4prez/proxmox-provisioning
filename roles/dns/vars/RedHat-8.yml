@@ -1,0 +1,5 @@
+---
+# BIND 9.11 predates the primary/secondary keywords.
+dns_keyword_primary: master
+dns_keyword_secondary: slave
+dns_keyword_primaries: masters

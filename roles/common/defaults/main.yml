@@ -1,0 +1,26 @@
+---
+common_packages:
+  - chrony
+  - firewalld
+  - qemu-guest-agent
+  - bash-completion
+  - tar
+  - rsync
+  - lvm2
+  - policycoreutils-python-utils
+common_extra_packages: []
+common_update_packages: false     # dnf update everything on first run
+common_reboot_if_needed: true     # reboot after updates when required
+
+common_sshd_settings:
+  PermitRootLogin: "no"
+  PasswordAuthentication: "no"
+  X11Forwarding: "no"
+
+common_firewall_services: [ssh]
+
+extra_filesystems: []
+# - {device: /dev/sdb, vg: vg_data, lv: lv_data, size: 100%FREE, mount: /data, fstype: xfs}
+
+rhsm_username: "{{ vault_rhsm_username | default('') }}"
+rhsm_password: "{{ vault_rhsm_password | default('') }}"

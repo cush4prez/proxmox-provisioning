@@ -1,0 +1,32 @@
+---
+- name: List enabled repositories
+  ansible.builtin.shell: set -o pipefail && subscription-manager repos --list-enabled | awk '/^Repo ID:/ {print $3}'
+  register: _enabled_repos
+  changed_when: false
+
+- name: Enable required repositories
+  ansible.builtin.command: >-
+    subscription-manager repos
+    {% for repo in _satellite_repos | difference(_enabled_repos.stdout_lines) %}--enable={{ repo }} {% endfor %}
+  vars:
+    _satellite_repos:
+      - "rhel-{{ rhel_version }}-for-x86_64-baseos-rpms"
+      - "rhel-{{ rhel_version }}-for-x86_64-appstream-rpms"
+      - "satellite-{{ satellite_version }}-for-rhel-{{ rhel_version }}-x86_64-rpms"
+      - "satellite-maintenance-{{ satellite_version }}-for-rhel-{{ rhel_version }}-x86_64-rpms"
+  when: _satellite_repos | difference(_enabled_repos.stdout_lines) | length > 0
+  changed_when: true
+
+- name: Check the Satellite DNF module stream
+  ansible.builtin.command: dnf -q module list --enabled satellite
+  register: _sat_module
+  changed_when: false
+  failed_when: false
+  when: satellite_dnf_module | length > 0
+
+- name: Enable DNF module {{ satellite_dnf_module }}
+  ansible.builtin.command: dnf -y module enable {{ satellite_dnf_module }}
+  when:
+    - satellite_dnf_module | length > 0
+    - _sat_module.rc != 0
+  changed_when: true

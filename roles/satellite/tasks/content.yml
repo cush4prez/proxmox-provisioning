@@ -1,0 +1,35 @@
+---
+- name: Copy subscription manifest
+  ansible.builtin.copy:
+    src: "{{ satellite_manifest_file }}"
+    dest: /root/satellite-manifest.zip
+    mode: "0600"
+  register: _manifest
+
+- name: Upload manifest to {{ satellite_organization }}
+  ansible.builtin.command: >-
+    hammer subscription upload --file /root/satellite-manifest.zip
+    --organization {{ satellite_organization | quote }}
+  when: _manifest is changed  # noqa: no-handler
+  changed_when: true
+
+- name: Enable Red Hat repositories
+  ansible.builtin.command: >-
+    hammer repository-set enable --organization {{ satellite_organization | quote }}
+    --product {{ item.product | quote }} --name {{ item.name | quote }}
+    --basearch {{ item.basearch | default('x86_64') }}
+    {{ ('--releasever ' ~ item.releasever) if item.releasever is defined else '' }}
+  register: _repo_enable
+  changed_when: _repo_enable.rc == 0
+  failed_when: _repo_enable.rc != 0 and 'already enabled' not in (_repo_enable.stderr + _repo_enable.stdout)
+  loop: "{{ satellite_repositories }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Start asynchronous product sync
+  ansible.builtin.command: >-
+    hammer product synchronize --async --organization {{ satellite_organization | quote }}
+    --name {{ item | quote }}
+  loop: "{{ satellite_repositories | map(attribute='product') | unique }}"
+  when: satellite_sync_repositories | bool
+  changed_when: true

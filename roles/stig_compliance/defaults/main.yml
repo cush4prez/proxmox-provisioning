@@ -1,0 +1,38 @@
+---
+# Wrapper around the RedHatOfficial.rhel{8,9,10}_stig roles (DISA STIG profile,
+# generated from ComplianceAsCode). Individual STIG rules are toggled with that
+# role's own boolean variables -- set them in group_vars/host_vars, e.g.
+#   sudo_remove_nopasswd: false
+# See docs/STIG_COMPLIANCE.md.
+
+stig_role_name: "RedHatOfficial.rhel{{ rhel_version }}_stig"
+
+# FIPS 140 mode. RHEL 8/9 are switched with fips-mode-setup (+ reboot).
+# RHEL 10 can only enable FIPS at install time -- build the template with fips=1.
+stig_enable_fips: true
+stig_require_fips: false          # true = fail RHEL 10 hosts that are not in FIPS mode
+
+# Automatically disable STIG rules that would break a node's server roles
+# (e.g. "chrony client only" on an NTP server). Exceptions are listed in vars/main.yml.
+stig_auto_exceptions: true
+
+# Reboot once after the first STIG application.
+stig_reboot: true
+
+# Run an OpenSCAP DISA STIG scan afterwards and fetch the HTML report.
+stig_scan: true
+stig_report_dir: "{{ playbook_dir | regex_replace('/playbooks$', '') }}/reports"
+
+# STIG rules that conflict with a server role. When stig_auto_exceptions is
+# true, each listed variable is forced to the given value on nodes with that
+# role. Override the whole dict in inventory to change it, and record each
+# exception as a documented deviation in your SSP/POA&M.
+stig_role_exceptions:
+  ntp:
+    chronyd_client_only: false          # NTP servers must listen on UDP/123
+  dns: {}
+  satellite: {}                         # installer is run with umask 0022 explicitly
+  aap: {}
+
+stig_scap_profile: xccdf_org.ssgproject.content_profile_stig
+stig_scap_datastream: "/usr/share/xml/scap/ssg/content/ssg-rhel{{ rhel_version }}-ds.xml"

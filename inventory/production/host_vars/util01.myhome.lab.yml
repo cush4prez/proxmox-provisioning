@@ -1,0 +1,8 @@
+---
+# Plain base node, RHEL 10, DISA STIG hardened, no server roles
+rhel_version: 10
+stig_enabled: true
+server_roles: []
+
+vm_id: 9140
+vm_ip: 192.168.10.40
