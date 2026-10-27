@@ -27,9 +27,9 @@ proxmox_templates:
 
 # --- VM defaults (per-node override in host_vars) ---------------------------
 vm_cores: 2
-vm_sockets: 1
+vm_sockets: 2
 vm_cpu_type: host
-vm_memory: 4096                 # MiB
+vm_memory: 8096               # MiB
 vm_disk: scsi0                  # template boot disk to grow
 vm_disk_size: 40G               # only ever grows
 vm_storage: local-lvm
